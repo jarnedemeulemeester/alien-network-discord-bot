@@ -1,7 +1,9 @@
-mod commands;
 mod api;
+mod commands;
+mod utils;
 
 use std::env;
+use regex::Regex;
 
 use serenity::async_trait;
 use serenity::model::application::interaction::{Interaction, InteractionResponseType};
@@ -9,30 +11,70 @@ use serenity::model::gateway::Ready;
 use serenity::model::prelude::GuildId;
 use serenity::prelude::*;
 
+use crate::utils::decode_hex;
+
 struct Handler;
 
 #[async_trait]
 impl EventHandler for Handler {
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::ApplicationCommand(command) = interaction {
-            println!("Received command interaction: {:#?} from {:#?}", command.data.name, command.user.name);
+            println!(
+                "Received command interaction: {:#?} from {:#?}",
+                command.data.name, command.user.name
+            );
 
-            let content = match command.data.name.as_str() {
+            let command_result = match command.data.name.as_str() {
                 "announce" => commands::announce::run(&command.data.options).await,
-                _ => "not implemented".to_string(),
+                _ => Err("not implemented".to_string()),
             };
 
-            if let Err(why) = command
-                .create_interaction_response(&ctx.http, |response| {
-                    response
-                        .kind(InteractionResponseType::ChannelMessageWithSource)
-                        .interaction_response_data(|message| {
-                            message.content(content).ephemeral(true)
+            match command_result {
+                Ok(media) => {
+                    let regex_html = Regex::new(r"<[^>]*>").unwrap();
+                    if let Err(why) = command
+                        .create_interaction_response(&ctx.http, |response| {
+                            response
+                                .kind(InteractionResponseType::ChannelMessageWithSource)
+                                .interaction_response_data(|message| {
+                                    message
+                                    .content("Message sent")
+                                    .ephemeral(true)
+                                    .embed(|e| {
+                                        e
+                                        .title(media.title.english + " is now available on Jellyfin!")
+                                        .description(regex_html.replace_all(&media.description, ""))
+                                        .image(media.cover_image.large)
+                                        .color(decode_hex(&media.cover_image.color))
+                                        .footer(|f| {
+                                            f
+                                            .text("Powered by AniList")
+                                            .icon_url("https://anilist.co/img/icons/android-chrome-512x512.png")
+                                        })
+                                    })
+                                })
                         })
-                })
-                .await
-            {
-                println!("Cannot respond to slash command: {}", why);
+                        .await
+                    {
+                        println!("Cannot respond to slash command: {}", why);
+                    }
+                }
+                Err(e) => {
+                    if let Err(why) = command
+                        .create_interaction_response(&ctx.http, |response| {
+                            response
+                                .kind(InteractionResponseType::ChannelMessageWithSource)
+                                .interaction_response_data(|message| {
+                                    message
+                                    .content(e)
+                                    .ephemeral(true)
+                                })
+                        })
+                        .await
+                    {
+                        println!("Cannot respond to slash command: {}", why);
+                    }
+                }
             }
         }
     }

@@ -4,9 +4,9 @@ use serenity::model::prelude::interaction::application_command::{
     CommandDataOption, CommandDataOptionValue,
 };
 
-use crate::api::anilist;
+use crate::api::anilist::{self, Media};
 
-pub async fn run(options: &[CommandDataOption]) -> String {
+pub async fn run(options: &[CommandDataOption]) -> Result<Media, String> {
     let subcommand = &options.get(0).expect("Expected subcommand").name;
 
     match subcommand.as_str() {
@@ -22,16 +22,13 @@ pub async fn run(options: &[CommandDataOption]) -> String {
                 .expect("Unknown error");
 
             if let CommandDataOptionValue::Integer(id) = option {
-                match anilist::get_data(id).await {
-                    Ok(media) => media.title.english,
-                    Err(e) => e,
-                }
+                anilist::get_data(id).await
             } else {
-                "Please provide a valid ID".to_string()
+                Err("Please provide a valid ID".to_string())
             }
         }
-        "tmdb" => "Not implemented yet".to_string(),
-        _ => "Invalid subcommand".to_string(),
+        "tmdb" => Err("Not implemented yet".to_string()),
+        _ => Err("Invalid subcommand".to_string()),
     }
 }
 

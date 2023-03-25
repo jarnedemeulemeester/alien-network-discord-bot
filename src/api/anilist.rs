@@ -12,11 +12,20 @@ struct Data {
 pub struct Media {
     pub id: u32,
     pub title: Title,
+    pub description: String,
+    #[serde(rename = "coverImage")]
+    pub cover_image: CoverImage,
 }
 
 #[derive(Deserialize)]
 pub struct Title {
     pub english: String,
+}
+
+#[derive(Deserialize)]
+pub struct CoverImage {
+    pub large: String,
+    pub color: String,
 }
 
 #[derive(Serialize)]
@@ -33,6 +42,11 @@ pub async fn get_data(id: &i64) -> Result<Media, String> {
                 title {
                     english
                 }
+                description (asHtml: false)
+                coverImage {
+                    large
+                    color
+                }
             }
         }
     "#;
@@ -43,7 +57,7 @@ pub async fn get_data(id: &i64) -> Result<Media, String> {
 
     let response = match request {
         Ok(r) => r,
-        Err(_e) => return Err("GraphQL error".to_string()),
+        Err(e) => return Err(e.message().to_string()),
     };
 
     //let media = response.unwrap().media;
