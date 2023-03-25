@@ -1,12 +1,17 @@
+use regex::Regex;
 use serenity::builder::CreateApplicationCommand;
 use serenity::model::prelude::command::CommandOptionType;
 use serenity::model::prelude::interaction::application_command::{
     CommandDataOption, CommandDataOptionValue,
 };
+use serenity::prelude::Context;
+use serenity::utils::MessageBuilder;
 
 use crate::api::anilist::{self, Media};
+use crate::utils::decode_hex;
+use crate::Handler;
 
-pub async fn run(options: &[CommandDataOption]) -> Result<Media, String> {
+pub async fn run(options: &[CommandDataOption], handler: &Handler, ctx: &Context) -> String {
     let subcommand = &options.get(0).expect("Expected subcommand").name;
 
     match subcommand.as_str() {
@@ -22,13 +27,46 @@ pub async fn run(options: &[CommandDataOption]) -> Result<Media, String> {
                 .expect("Unknown error");
 
             if let CommandDataOptionValue::Integer(id) = option {
-                anilist::get_data(id).await
+                let api_response = anilist::get_data(id).await;
+                match api_response {
+                    Ok(media) => send_announcement(handler, ctx, media).await,
+                    Err(e) => e,
+                }
             } else {
-                Err("Please provide a valid ID".to_string())
+                "Please provide a valid ID".to_string()
             }
         }
-        "tmdb" => Err("Not implemented yet".to_string()),
-        _ => Err("Invalid subcommand".to_string()),
+        "tmdb" => {
+            let option_id = &options
+                .get(0)
+                .unwrap()
+                .options
+                .get(0)
+                .expect("No ID specified")
+                .resolved
+                .as_ref()
+                .expect("Unknown error");
+
+            let option_season = &options.get(0).unwrap().options.get(1);
+
+            if option_season.is_some() {
+                let season = option_season.unwrap().resolved.as_ref().unwrap();
+
+                if let CommandDataOptionValue::Integer(season) = season {
+                    println!("{}", season);
+                    return "Announcement sent!".to_string();
+                } else {
+                    return "Please provide a valid integer".to_string();
+                }
+            }
+
+            if let CommandDataOptionValue::Integer(_id) = option_id {
+                "Announcement sent!".to_string()
+            } else {
+                "Please provide a valid ID".to_string()
+            }
+        }
+        _ => "Invalid subcommand".to_string(),
     }
 }
 
@@ -61,5 +99,44 @@ pub fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicatio
                         .kind(CommandOptionType::Integer)
                         .required(true)
                 })
+                .create_sub_option(|suboption| {
+                    suboption
+                        .name("season_number")
+                        .description("Season number")
+                        .kind(CommandOptionType::Integer)
+                })
+                .create_sub_option(|suboption| {
+                    suboption
+                        .name("episode_number")
+                        .description("Episode number")
+                        .kind(CommandOptionType::Integer)
+                })
         })
+}
+
+async fn send_announcement(handler: &Handler, ctx: &Context, media: Media) -> String {
+    let regex_html = Regex::new(r"<[^>]*>").unwrap();
+    let message_sent = handler
+        .jellyfin_announcements_channel
+        .send_message(&ctx.http, |message| {
+            message.embed(|e| {
+                e.title(media.title.english + " is now available on Jellyfin!")
+                    .description(regex_html.replace_all(&media.description, ""))
+                    .image(media.cover_image.large)
+                    .color(decode_hex(&media.cover_image.color))
+                    .footer(|f| {
+                        f.text("Powered by AniList")
+                            .icon_url("https://anilist.co/img/icons/android-chrome-512x512.png")
+                    })
+            })
+        })
+        .await;
+
+    match message_sent {
+        Ok(_message) => MessageBuilder::new()
+            .push("Announcement sent in ")
+            .mention(&handler.jellyfin_announcements_channel)
+            .build(),
+        Err(e) => format!("Cannot post announcement: {}", e).to_string(),
+    }
 }

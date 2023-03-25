@@ -3,18 +3,15 @@ mod commands;
 mod utils;
 
 use std::env;
-use regex::Regex;
 
 use serenity::async_trait;
-use serenity::model::application::interaction::{Interaction, InteractionResponseType};
+use serenity::model::application::interaction::Interaction;
 use serenity::model::gateway::Ready;
-use serenity::model::prelude::{GuildId, ChannelId};
+use serenity::model::prelude::interaction::InteractionResponseType;
+use serenity::model::prelude::{ChannelId, GuildId};
 use serenity::prelude::*;
-use serenity::utils::MessageBuilder;
 
-use crate::utils::decode_hex;
-
-struct Handler {
+pub struct Handler {
     jellyfin_announcements_channel: ChannelId,
 }
 
@@ -27,70 +24,22 @@ impl EventHandler for Handler {
                 command.data.name, command.user.name
             );
 
-            let command_result = match command.data.name.as_str() {
-                "announce" => commands::announce::run(&command.data.options).await,
-                _ => Err("not implemented".to_string()),
+            let response_message = match command.data.name.as_str() {
+                "announce" => commands::announce::run(&command.data.options, &self, &ctx).await,
+                _ => "not implemented".to_string(),
             };
 
-            match command_result {
-                Ok(media) => {
-                    let regex_html = Regex::new(r"<[^>]*>").unwrap();
-                    if let Err(why) = self.jellyfin_announcements_channel.send_message(&ctx.http, |message| {
-                        message
-                            .embed(|e| {
-                                e
-                                .title(media.title.english + " is now available on Jellyfin!")
-                                .description(regex_html.replace_all(&media.description, ""))
-                                .image(media.cover_image.large)
-                                .color(decode_hex(&media.cover_image.color))
-                                .footer(|f| {
-                                    f
-                                    .text("Powered by AniList")
-                                    .icon_url("https://anilist.co/img/icons/android-chrome-512x512.png")
-                                })
-                            })
-                    })
-                    .await
-                    {
-                        println!("Cannot post announcement: {}", why);
-                    }
-
-                    if let Err(why) = command
-                        .create_interaction_response(&ctx.http, |response| {
-                            response
-                                .kind(InteractionResponseType::ChannelMessageWithSource)
-                                .interaction_response_data(|message| {
-                                    message
-                                    .content(
-                                        MessageBuilder::new()
-                                        .push("Announcement sent in ")
-                                        .mention(&self.jellyfin_announcements_channel)
-                                        .build()
-                                    )
-                                    .ephemeral(true)
-                                })
+            if let Err(why) = command
+                .create_interaction_response(&ctx.http, |response| {
+                    response
+                        .kind(InteractionResponseType::ChannelMessageWithSource)
+                        .interaction_response_data(|message| {
+                            message.content(response_message).ephemeral(true)
                         })
-                        .await
-                    {
-                        println!("Cannot respond to slash command: {}", why);
-                    }
-                }
-                Err(e) => {
-                    if let Err(why) = command
-                        .create_interaction_response(&ctx.http, |response| {
-                            response
-                                .kind(InteractionResponseType::ChannelMessageWithSource)
-                                .interaction_response_data(|message| {
-                                    message
-                                    .content(e)
-                                    .ephemeral(true)
-                                })
-                        })
-                        .await
-                    {
-                        println!("Cannot respond to slash command: {}", why);
-                    }
-                }
+                })
+                .await
+            {
+                println!("Cannot respond to slash command: {}", why);
             }
         }
     }
@@ -128,7 +77,9 @@ async fn main() {
 
     // Build our client.
     let mut client = Client::builder(token, GatewayIntents::empty())
-        .event_handler(Handler { jellyfin_announcements_channel: jellyfin_announcements_channel })
+        .event_handler(Handler {
+            jellyfin_announcements_channel: jellyfin_announcements_channel,
+        })
         .await
         .expect("Error creating client");
 
