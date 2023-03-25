@@ -4,7 +4,9 @@ use serenity::model::prelude::interaction::application_command::{
     CommandDataOption, CommandDataOptionValue,
 };
 
-pub fn run(options: &[CommandDataOption]) -> String {
+use crate::api::anilist;
+
+pub async fn run(options: &[CommandDataOption]) -> String {
     let subcommand = &options.get(0).expect("Expected subcommand").name;
 
     match subcommand.as_str() {
@@ -20,7 +22,10 @@ pub fn run(options: &[CommandDataOption]) -> String {
                 .expect("Unknown error");
 
             if let CommandDataOptionValue::Integer(id) = option {
-                return anilist_lookup(&id);
+                match anilist::get_data(id).await {
+                    Ok(media) => media.title.english,
+                    Err(e) => e,
+                }
             } else {
                 "Please provide a valid ID".to_string()
             }
@@ -60,8 +65,4 @@ pub fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicatio
                         .required(true)
                 })
         })
-}
-
-fn anilist_lookup(id: &i64) -> String {
-    "Yes".to_string()
 }

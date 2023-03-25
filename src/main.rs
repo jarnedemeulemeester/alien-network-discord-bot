@@ -1,4 +1,5 @@
 mod commands;
+mod api;
 
 use std::env;
 
@@ -14,10 +15,10 @@ struct Handler;
 impl EventHandler for Handler {
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::ApplicationCommand(command) = interaction {
-            println!("Received command interaction: {:#?}", command);
+            println!("Received command interaction: {:#?} from {:#?}", command.data.name, command.user.name);
 
             let content = match command.data.name.as_str() {
-                "announce" => commands::announce::run(&command.data.options),
+                "announce" => commands::announce::run(&command.data.options).await,
                 _ => "not implemented".to_string(),
             };
 
