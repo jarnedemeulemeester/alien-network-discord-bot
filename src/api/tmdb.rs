@@ -38,8 +38,40 @@ pub async fn get_configuration() -> Result<Configuration, String> {
         .unwrap()
         .json::<Configuration>()
         .await;
+
     match resp {
         Ok(config) => Ok(config),
+        Err(e) => Err(e.to_string())
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TvShow {
+    pub name: String,
+    pub overview: String,
+    pub poster_path: String,
+}
+
+pub async fn get_tv_show(id: &i64) -> Result<TvShow, String> {
+    let endpoint = format!("https://api.themoviedb.org/3/tv/{id}");
+
+    let tmdb_token = env::var("TMDB_TOKEN")
+        .expect("Expected JELLYFIN_ANNOUNCEMENTS_CHANNEL_ID in environment");
+
+    let client = reqwest::Client::new();
+
+    let resp = 
+        client
+        .get(endpoint)
+        .header(AUTHORIZATION, format!("Bearer {}", tmdb_token))
+        .send()
+        .await
+        .unwrap()
+        .json::<TvShow>()
+        .await;
+
+    match resp {
+        Ok(tv_show) => Ok(tv_show),
         Err(e) => Err(e.to_string())
     }
 }

@@ -8,7 +8,7 @@ use serenity::prelude::Context;
 use serenity::utils::MessageBuilder;
 
 use crate::api::anilist::{self, Media};
-use crate::api::tmdb::get_configuration;
+use crate::api::tmdb::{get_configuration, get_tv_show, TvShow, Configuration};
 use crate::utils::decode_hex;
 use crate::Handler;
 
@@ -30,7 +30,7 @@ pub async fn run(options: &[CommandDataOption], handler: &Handler, ctx: &Context
             if let CommandDataOptionValue::Integer(id) = option {
                 let api_response = anilist::get_data(id).await;
                 match api_response {
-                    Ok(media) => send_announcement(handler, ctx, media).await,
+                    Ok(media) => send_anilist_announcement(handler, ctx, media).await,
                     Err(e) => e,
                 }
             } else {
@@ -53,21 +53,24 @@ pub async fn run(options: &[CommandDataOption], handler: &Handler, ctx: &Context
             if option_season.is_some() {
                 let season = option_season.unwrap().resolved.as_ref().unwrap();
 
-                if let CommandDataOptionValue::Integer(season) = season {
+                let season = if let CommandDataOptionValue::Integer(season) = season {
                     println!("{}", season);
-                    return "Announcement sent!".to_string();
+                    "Announcement sent!".to_string()
                 } else {
                     return "Please provide a valid integer".to_string();
-                }
+                };
             }
 
-            if let CommandDataOptionValue::Integer(_id) = option_id {
+            if let CommandDataOptionValue::Integer(id) = option_id {
                 let config = match get_configuration().await {
                     Ok(config) => config,
-                    Err(e) => return e
+                    Err(e) => return e,
                 };
 
-                "Announcement sent!".to_string()
+                match get_tv_show(id).await {
+                    Ok(tv_show) => send_tmdb_show_announcement(handler, ctx, config, tv_show).await,
+                    Err(e) => return e,
+                }
             } else {
                 "Please provide a valid ID".to_string()
             }
@@ -120,7 +123,7 @@ pub fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicatio
         })
 }
 
-async fn send_announcement(handler: &Handler, ctx: &Context, media: Media) -> String {
+async fn send_anilist_announcement(handler: &Handler, ctx: &Context, media: Media) -> String {
     let regex_html = Regex::new(r"<[^>]*>").unwrap();
     let message_sent = handler
         .jellyfin_announcements_channel
@@ -144,5 +147,31 @@ async fn send_announcement(handler: &Handler, ctx: &Context, media: Media) -> St
             .mention(&handler.jellyfin_announcements_channel)
             .build(),
         Err(e) => format!("Cannot post announcement: {}", e).to_string(),
+    }
+}
+
+async fn send_tmdb_show_announcement(handler: &Handler, ctx: &Context, config: Configuration, tv_show: TvShow) -> String {
+    let message_sent = handler
+        .jellyfin_announcements_channel
+        .send_message(&ctx.http, |message| {
+            message.embed(|e| {
+                e.title(tv_show.name + " is now available on Jellyfin!")
+                    .description(tv_show.overview)
+                    .image(format!("{}original{}", config.images.secure_base_url, tv_show.poster_path))
+                    .color((13, 37, 63))
+                    .footer(|f| {
+                        f.text("Powered by TMDB")
+                            .icon_url("https://www.themoviedb.org/assets/2/favicon-43c40950dbf3cffd5e6d682c5a8986dfdc0ac90dce9f59da9ef072aaf53aebb3.png")
+                    })
+            })
+        })
+        .await;
+
+    match message_sent {
+        Ok(_message) => MessageBuilder::new()
+            .push("Announcement sent in ")
+            .mention(&handler.jellyfin_announcements_channel)
+            .build(),
+        Err(e) => format!("Cannot post announcement: {e}").to_string(),
     }
 }
