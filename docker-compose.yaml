@@ -1,0 +1,10 @@
+version: "3"
+
+services:
+  an-bot:
+    image: jarnedemeulemeester/alien-network-discord-bot:0.1.0
+    build:
+      context: .
+    container_name: an-bot
+    restart: unless-stopped
+    env_file: .env
