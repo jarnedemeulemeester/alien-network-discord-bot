@@ -23,6 +23,7 @@ version = "0.1.0"
 dependencies = [
  "gql_client",
  "regex",
+ "reqwest",
  "serde",
  "serenity",
  "tokio",

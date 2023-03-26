@@ -55,12 +55,8 @@ pub async fn get_data(id: &i64) -> Result<Media, String> {
     let vars = Vars { id: id.clone() };
     let request = client.query_with_vars_unwrap::<Data, Vars>(query, vars).await;
 
-    let response = match request {
-        Ok(r) => r,
-        Err(e) => return Err(e.message().to_string()),
-    };
-
-    //let media = response.unwrap().media;
-
-    Ok(response.media)
+    match request {
+        Ok(r) => Ok(r.media),
+        Err(e) => Err(e.message().to_string()),
+    }
 }

@@ -8,6 +8,7 @@ use serenity::prelude::Context;
 use serenity::utils::MessageBuilder;
 
 use crate::api::anilist::{self, Media};
+use crate::api::tmdb::get_configuration;
 use crate::utils::decode_hex;
 use crate::Handler;
 
@@ -61,6 +62,11 @@ pub async fn run(options: &[CommandDataOption], handler: &Handler, ctx: &Context
             }
 
             if let CommandDataOptionValue::Integer(_id) = option_id {
+                let config = match get_configuration().await {
+                    Ok(config) => config,
+                    Err(e) => return e
+                };
+
                 "Announcement sent!".to_string()
             } else {
                 "Please provide a valid ID".to_string()
