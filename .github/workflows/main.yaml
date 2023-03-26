@@ -28,4 +28,4 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           push: true
-          tags: jarnedemeulemeester/alien-network-discord-bot:latest,jarnedemeulemeester/alien-network-discord-bot:${SHORT_SHA}
+          tags: jarnedemeulemeester/alien-network-discord-bot:latest,jarnedemeulemeester/alien-network-discord-bot:${{ env.SHORT_SHA }}
