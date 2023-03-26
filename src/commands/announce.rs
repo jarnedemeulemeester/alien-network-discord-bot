@@ -8,7 +8,7 @@ use serenity::prelude::Context;
 use serenity::utils::MessageBuilder;
 
 use crate::api::anilist::{self, Media};
-use crate::api::tmdb::{get_configuration, get_tv_show, TvShow, Configuration};
+use crate::api::tmdb::{get_configuration, get_tv_show, TvShow, Configuration, get_movie, Movie};
 use crate::utils::decode_hex;
 use crate::Handler;
 
@@ -38,7 +38,18 @@ pub async fn run(options: &[CommandDataOption], handler: &Handler, ctx: &Context
             }
         }
         "tmdb" => {
-            let option_id = &options
+            let t = &options
+                .get(0)
+                .unwrap()
+                .options
+                .get(0)
+                .expect("No type defined")
+                .name;
+
+            let main_id = &options
+                .get(0)
+                .unwrap()
+                .options
                 .get(0)
                 .unwrap()
                 .options
@@ -48,32 +59,35 @@ pub async fn run(options: &[CommandDataOption], handler: &Handler, ctx: &Context
                 .as_ref()
                 .expect("Unknown error");
 
-            let option_season = &options.get(0).unwrap().options.get(1);
-
-            if option_season.is_some() {
-                let season = option_season.unwrap().resolved.as_ref().unwrap();
-
-                let season = if let CommandDataOptionValue::Integer(season) = season {
-                    println!("{}", season);
-                    "Announcement sent!".to_string()
+            let id = if let CommandDataOptionValue::Integer(id) = main_id {
+                    id
                 } else {
-                    return "Please provide a valid integer".to_string();
+                    return "Please provide a valid ID".to_string()
                 };
-            }
+            
+            let config = match get_configuration().await {
+                Ok(config) => config,
+                Err(e) => return e,
+            };
 
-            if let CommandDataOptionValue::Integer(id) = option_id {
-                let config = match get_configuration().await {
-                    Ok(config) => config,
-                    Err(e) => return e,
-                };
-
-                match get_tv_show(id).await {
-                    Ok(tv_show) => send_tmdb_show_announcement(handler, ctx, config, tv_show).await,
-                    Err(e) => return e,
+            match t.as_str() {
+                "movie" => {
+                    match get_movie(id).await {
+                        Ok(movie) => return send_tmdb_movie_announcement(handler, ctx, config, movie).await,
+                        Err(e) => return e,
+                    }
                 }
-            } else {
-                "Please provide a valid ID".to_string()
+                "tv_show" => {
+                    match get_tv_show(id).await {
+                        Ok(tv_show) => return send_tmdb_show_announcement(handler, ctx, config, tv_show).await,
+                        Err(e) => return e,
+                    }
+                }
+                "season" => {}
+                "episode" => {}
+                _ => {}
             }
+            "Please provide a valid ID".to_string()
         }
         _ => "Invalid subcommand".to_string(),
     }
@@ -100,25 +114,79 @@ pub fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicatio
             option
                 .name("tmdb")
                 .description("Announce a new movie, series, season or episode on Jellyfin")
-                .kind(CommandOptionType::SubCommand)
+                .kind(CommandOptionType::SubCommandGroup)
                 .create_sub_option(|suboption| {
                     suboption
-                        .name("id")
-                        .description("Id of the item on TMDB")
-                        .kind(CommandOptionType::Integer)
-                        .required(true)
+                    .name("movie")
+                    .description("Announce a new movie on Jellyfin")
+                    .kind(CommandOptionType::SubCommand)
+                    .create_sub_option(|suboption| {
+                        suboption
+                            .name("id")
+                            .description("Id of the item on TMDB")
+                            .kind(CommandOptionType::Integer)
+                            .required(true)
+                    })
                 })
                 .create_sub_option(|suboption| {
                     suboption
-                        .name("season_number")
-                        .description("Season number")
-                        .kind(CommandOptionType::Integer)
+                    .name("tv_show")
+                    .description("Announce a new TV show on Jellyfin")
+                    .kind(CommandOptionType::SubCommand)
+                    .create_sub_option(|suboption| {
+                        suboption
+                            .name("id")
+                            .description("Id of the item on TMDB")
+                            .kind(CommandOptionType::Integer)
+                            .required(true)
+                    })
                 })
                 .create_sub_option(|suboption| {
                     suboption
-                        .name("episode_number")
-                        .description("Episode number")
-                        .kind(CommandOptionType::Integer)
+                    .name("season")
+                    .description("Announce a new season on Jellyfin")
+                    .kind(CommandOptionType::SubCommand)
+                    .create_sub_option(|suboption| {
+                        suboption
+                            .name("id")
+                            .description("Id of the item on TMDB")
+                            .kind(CommandOptionType::Integer)
+                            .required(true)
+                    })
+                    .create_sub_option(|suboption| {
+                        suboption
+                            .name("season_number")
+                            .description("Season number")
+                            .kind(CommandOptionType::Integer)
+                            .required(true)
+                    })
+                })
+                .create_sub_option(|suboption| {
+                    suboption
+                    .name("episode")
+                    .description("Announce a new episode on Jellyfin")
+                    .kind(CommandOptionType::SubCommand)
+                    .create_sub_option(|suboption| {
+                        suboption
+                            .name("id")
+                            .description("Id of the item on TMDB")
+                            .kind(CommandOptionType::Integer)
+                            .required(true)
+                    })
+                    .create_sub_option(|suboption| {
+                        suboption
+                            .name("season_number")
+                            .description("Season number")
+                            .kind(CommandOptionType::Integer)
+                            .required(true)
+                    })
+                    .create_sub_option(|suboption| {
+                        suboption
+                            .name("episode_number")
+                            .description("Episode number")
+                            .kind(CommandOptionType::Integer)
+                            .required(true)
+                    })
                 })
         })
 }
@@ -158,6 +226,32 @@ async fn send_tmdb_show_announcement(handler: &Handler, ctx: &Context, config: C
                 e.title(tv_show.name + " is now available on Jellyfin!")
                     .description(tv_show.overview)
                     .image(format!("{}original{}", config.images.secure_base_url, tv_show.poster_path))
+                    .color((13, 37, 63))
+                    .footer(|f| {
+                        f.text("Powered by TMDB")
+                            .icon_url("https://www.themoviedb.org/assets/2/favicon-43c40950dbf3cffd5e6d682c5a8986dfdc0ac90dce9f59da9ef072aaf53aebb3.png")
+                    })
+            })
+        })
+        .await;
+
+    match message_sent {
+        Ok(_message) => MessageBuilder::new()
+            .push("Announcement sent in ")
+            .mention(&handler.jellyfin_announcements_channel)
+            .build(),
+        Err(e) => format!("Cannot post announcement: {e}").to_string(),
+    }
+}
+
+async fn send_tmdb_movie_announcement(handler: &Handler, ctx: &Context, config: Configuration, movie: Movie) -> String {
+    let message_sent = handler
+        .jellyfin_announcements_channel
+        .send_message(&ctx.http, |message| {
+            message.embed(|e| {
+                e.title(movie.title + " is now available on Jellyfin!")
+                    .description(movie.overview)
+                    .image(format!("{}original{}", config.images.secure_base_url, movie.poster_path))
                     .color((13, 37, 63))
                     .footer(|f| {
                         f.text("Powered by TMDB")
