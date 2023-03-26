@@ -360,6 +360,7 @@ async fn send_tmdb_season_announcement(handler: &Handler, ctx: &Context, config:
                 e.title(format!("{} {} is now available on Jellyfin!", tv_show.name, season.name))
                     .description(season.overview)
                     .image(format!("{}original{}", config.images.secure_base_url, season.poster_path))
+                    .thumbnail(format!("{}original{}", config.images.secure_base_url, tv_show.poster_path))
                     .color((13, 37, 63))
                     .footer(|f| {
                         f.text("Powered by TMDB")
@@ -386,6 +387,7 @@ async fn send_tmdb_episode_announcement(handler: &Handler, ctx: &Context, config
                 e.title(format!("{} {} Episode {} is now available on Jellyfin!", tv_show.name, season.name, episode.episode_number))
                     .description(episode.overview)
                     .image(format!("{}original{}", config.images.secure_base_url, episode.still_path))
+                    .thumbnail(format!("{}original{}", config.images.secure_base_url, season.poster_path))
                     .color((13, 37, 63))
                     .footer(|f| {
                         f.text("Powered by TMDB")
