@@ -142,7 +142,8 @@ pub async fn get_season(id: &i64, season_number: &i64) -> Result<Season, String>
 pub struct Episode {
     pub name: String,
     pub overview: String,
-    pub poster_path: String,
+    pub still_path: String,
+    pub episode_number: i32,
 }
 
 pub async fn get_episode(id: &i64, season_number: &i64, episode_number: &i64) -> Result<Episode, String> {

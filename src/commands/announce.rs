@@ -8,7 +8,7 @@ use serenity::prelude::Context;
 use serenity::utils::MessageBuilder;
 
 use crate::api::anilist::{self, Media};
-use crate::api::tmdb::{get_configuration, get_tv_show, TvShow, Configuration, get_movie, Movie, get_season, Season};
+use crate::api::tmdb::{get_configuration, get_tv_show, TvShow, Configuration, get_movie, Movie, get_season, Season, get_episode, Episode};
 use crate::utils::decode_hex;
 use crate::Handler;
 
@@ -113,7 +113,60 @@ pub async fn run(options: &[CommandDataOption], handler: &Handler, ctx: &Context
                         Err(e) => return e,
                     }
                 }
-                "episode" => {}
+                "episode" => {
+                    let season_number_option = &options
+                    .get(0)
+                    .unwrap()
+                    .options
+                    .get(0)
+                    .unwrap()
+                    .options
+                    .get(1)
+                    .expect("No number specified")
+                    .resolved
+                    .as_ref()
+                    .expect("Unknown error");
+
+                    let season_number = if let CommandDataOptionValue::Integer(number) = season_number_option {
+                        number
+                    } else {
+                        return "Please provide a valid number".to_string()
+                    };
+
+                    let episode_number_option = &options
+                    .get(0)
+                    .unwrap()
+                    .options
+                    .get(0)
+                    .unwrap()
+                    .options
+                    .get(2)
+                    .expect("No number specified")
+                    .resolved
+                    .as_ref()
+                    .expect("Unknown error");
+
+                    let episode_number = if let CommandDataOptionValue::Integer(number) = episode_number_option {
+                        number
+                    } else {
+                        return "Please provide a valid number".to_string()
+                    };
+
+                    match get_tv_show(id).await {
+                        Ok(tv_show) => {
+                            match get_season(id, season_number).await {
+                                Ok(season) => {
+                                    match get_episode(id, season_number, episode_number).await {
+                                        Ok(episode) => return send_tmdb_episode_announcement(handler, ctx, config, tv_show, season, episode).await,
+                                        Err(e) => return e,
+                                    }
+                                },
+                                Err(e) => return e,
+                            }
+                        },
+                        Err(e) => return e,
+                    }
+                }
                 _ => {}
             }
             "Please provide a valid ID".to_string()
@@ -307,6 +360,32 @@ async fn send_tmdb_season_announcement(handler: &Handler, ctx: &Context, config:
                 e.title(format!("{} {} is now available on Jellyfin!", tv_show.name, season.name))
                     .description(season.overview)
                     .image(format!("{}original{}", config.images.secure_base_url, season.poster_path))
+                    .color((13, 37, 63))
+                    .footer(|f| {
+                        f.text("Powered by TMDB")
+                            .icon_url("https://www.themoviedb.org/assets/2/favicon-43c40950dbf3cffd5e6d682c5a8986dfdc0ac90dce9f59da9ef072aaf53aebb3.png")
+                    })
+            })
+        })
+        .await;
+
+    match message_sent {
+        Ok(_message) => MessageBuilder::new()
+            .push("Announcement sent in ")
+            .mention(&handler.jellyfin_announcements_channel)
+            .build(),
+        Err(e) => format!("Cannot post announcement: {e}").to_string(),
+    }
+}
+
+async fn send_tmdb_episode_announcement(handler: &Handler, ctx: &Context, config: Configuration, tv_show: TvShow, season: Season, episode: Episode) -> String {
+    let message_sent = handler
+        .jellyfin_announcements_channel
+        .send_message(&ctx.http, |message| {
+            message.embed(|e| {
+                e.title(format!("{} {} Episode {} is now available on Jellyfin!", tv_show.name, season.name, episode.episode_number))
+                    .description(episode.overview)
+                    .image(format!("{}original{}", config.images.secure_base_url, episode.still_path))
                     .color((13, 37, 63))
                     .footer(|f| {
                         f.text("Powered by TMDB")
