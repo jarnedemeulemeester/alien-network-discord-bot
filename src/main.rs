@@ -12,7 +12,10 @@ use serenity::model::prelude::{ChannelId, GuildId};
 use serenity::prelude::*;
 
 pub struct Handler {
-    jellyfin_announcements_channel: ChannelId,
+    guild_id: GuildId,
+    jellyfin_announcements_channel_id: ChannelId,
+    shuffle_category_id: ChannelId,
+    lobby_channel_id: ChannelId,
 }
 
 #[async_trait]
@@ -26,6 +29,7 @@ impl EventHandler for Handler {
 
             let response_message = match command.data.name.as_str() {
                 "announce" => commands::announce::run(&command.data.options, &self, &ctx).await,
+                "shuffle" => commands::shuffle::run(&command, &self, &ctx).await,
                 _ => "not implemented".to_string(),
             };
 
@@ -47,15 +51,10 @@ impl EventHandler for Handler {
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
 
-        let guild_id = GuildId(
-            env::var("GUILD_ID")
-                .expect("Expected GUILD_ID in environment")
-                .parse()
-                .expect("GUILD_ID must be an integer"),
-        );
-
-        let commands = GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
-            commands.create_application_command(|command| commands::announce::register(command))
+        let commands = GuildId::set_application_commands(&self.guild_id, &ctx.http, |commands| {
+            commands
+                .create_application_command(|command| commands::announce::register(command))
+                .create_application_command(|command| commands::shuffle::register(command))
         })
         .await;
 
@@ -68,20 +67,47 @@ async fn main() {
     // Configure the client with your Discord bot token in the environment.
     let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
 
-    let jellyfin_announcements_channel = ChannelId(
+    let guild_id = GuildId(
+        env::var("GUILD_ID")
+            .expect("Expected GUILD_ID in environment")
+            .parse()
+            .expect("GUILD_ID must be an integer"),
+    );
+
+    let jellyfin_announcements_channel_id = ChannelId(
         env::var("JELLYFIN_ANNOUNCEMENTS_CHANNEL_ID")
             .expect("Expected JELLYFIN_ANNOUNCEMENTS_CHANNEL_ID in environment")
             .parse()
             .expect("JELLYFIN_ANNOUNCEMENTS_CHANNEL_ID must be an integer"),
     );
 
+    let shuffle_category_id = ChannelId(
+        env::var("SHUFFLE_CATEGORY_ID")
+            .expect("Expected SHUFFLE_CATEGORY_ID in environment")
+            .parse()
+            .expect("SHUFFLE_CATEGORY_ID must be an integer"),
+    );
+
+    let lobby_channel_id = ChannelId(
+        env::var("LOBBY_CHANNEL_ID")
+            .expect("Expected LOBBY_CHANNEL_ID in environment")
+            .parse()
+            .expect("LOBBY_CHANNEL_ID must be an integer"),
+    );
+
     // Build our client.
-    let mut client = Client::builder(token, GatewayIntents::empty())
-        .event_handler(Handler {
-            jellyfin_announcements_channel: jellyfin_announcements_channel,
-        })
-        .await
-        .expect("Error creating client");
+    let mut client = Client::builder(
+        token,
+        GatewayIntents::GUILDS | GatewayIntents::GUILD_VOICE_STATES,
+    )
+    .event_handler(Handler {
+        guild_id,
+        jellyfin_announcements_channel_id,
+        shuffle_category_id,
+        lobby_channel_id,
+    })
+    .await
+    .expect("Error creating client");
 
     let shard_manager = client.shard_manager.clone();
 

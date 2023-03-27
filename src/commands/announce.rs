@@ -288,7 +288,7 @@ pub fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicatio
 async fn send_anilist_announcement(handler: &Handler, ctx: &Context, media: Media) -> String {
     let regex_html = Regex::new(r"<[^>]*>").unwrap();
     let message_sent = handler
-        .jellyfin_announcements_channel
+        .jellyfin_announcements_channel_id
         .send_message(&ctx.http, |message| {
             message.embed(|e| {
                 e.title(media.title.english + " is now available on Jellyfin!")
@@ -306,7 +306,7 @@ async fn send_anilist_announcement(handler: &Handler, ctx: &Context, media: Medi
     match message_sent {
         Ok(_message) => MessageBuilder::new()
             .push("Announcement sent in ")
-            .mention(&handler.jellyfin_announcements_channel)
+            .mention(&handler.jellyfin_announcements_channel_id)
             .build(),
         Err(e) => format!("Cannot post announcement: {}", e).to_string(),
     }
@@ -319,7 +319,7 @@ async fn send_tmdb_show_announcement(
     tv_show: TvShow,
 ) -> String {
     let message_sent = handler
-        .jellyfin_announcements_channel
+        .jellyfin_announcements_channel_id
         .send_message(&ctx.http, |message| {
             message.embed(|e| {
                 e.title(tv_show.name + " is now available on Jellyfin!")
@@ -337,7 +337,7 @@ async fn send_tmdb_show_announcement(
     match message_sent {
         Ok(_message) => MessageBuilder::new()
             .push("Announcement sent in ")
-            .mention(&handler.jellyfin_announcements_channel)
+            .mention(&handler.jellyfin_announcements_channel_id)
             .build(),
         Err(e) => format!("Cannot post announcement: {e}").to_string(),
     }
@@ -350,7 +350,7 @@ async fn send_tmdb_movie_announcement(
     movie: Movie,
 ) -> String {
     let message_sent = handler
-        .jellyfin_announcements_channel
+        .jellyfin_announcements_channel_id
         .send_message(&ctx.http, |message| {
             message.embed(|e| {
                 e.title(movie.title + " is now available on Jellyfin!")
@@ -368,7 +368,7 @@ async fn send_tmdb_movie_announcement(
     match message_sent {
         Ok(_message) => MessageBuilder::new()
             .push("Announcement sent in ")
-            .mention(&handler.jellyfin_announcements_channel)
+            .mention(&handler.jellyfin_announcements_channel_id)
             .build(),
         Err(e) => format!("Cannot post announcement: {e}").to_string(),
     }
@@ -382,7 +382,7 @@ async fn send_tmdb_season_announcement(
     season: Season,
 ) -> String {
     let message_sent = handler
-        .jellyfin_announcements_channel
+        .jellyfin_announcements_channel_id
         .send_message(&ctx.http, |message| {
             message.embed(|e| {
                 e.title(format!("{} {} is now available on Jellyfin!", tv_show.name, season.name))
@@ -401,7 +401,7 @@ async fn send_tmdb_season_announcement(
     match message_sent {
         Ok(_message) => MessageBuilder::new()
             .push("Announcement sent in ")
-            .mention(&handler.jellyfin_announcements_channel)
+            .mention(&handler.jellyfin_announcements_channel_id)
             .build(),
         Err(e) => format!("Cannot post announcement: {e}").to_string(),
     }
@@ -416,7 +416,7 @@ async fn send_tmdb_episode_announcement(
     episode: Episode,
 ) -> String {
     let message_sent = handler
-        .jellyfin_announcements_channel
+        .jellyfin_announcements_channel_id
         .send_message(&ctx.http, |message| {
             message.embed(|e| {
                 e.title(format!("{} {} Episode {} is now available on Jellyfin!", tv_show.name, season.name, episode.episode_number))
@@ -435,7 +435,7 @@ async fn send_tmdb_episode_announcement(
     match message_sent {
         Ok(_message) => MessageBuilder::new()
             .push("Announcement sent in ")
-            .mention(&handler.jellyfin_announcements_channel)
+            .mention(&handler.jellyfin_announcements_channel_id)
             .build(),
         Err(e) => format!("Cannot post announcement: {e}").to_string(),
     }
