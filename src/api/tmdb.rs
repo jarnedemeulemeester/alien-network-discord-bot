@@ -3,10 +3,9 @@ use std::env;
 use reqwest::header::AUTHORIZATION;
 use serde::Deserialize;
 
-
 #[derive(Debug, Deserialize)]
 pub struct Configuration {
-    pub images: ImagesConfiguration
+    pub images: ImagesConfiguration,
 }
 
 #[derive(Debug, Deserialize)]
@@ -20,17 +19,15 @@ pub struct ImagesConfiguration {
     pub still_sizes: Vec<String>,
 }
 
-
 pub async fn get_configuration() -> Result<Configuration, String> {
     let endpoint = "https://api.themoviedb.org/3/configuration";
 
-    let tmdb_token = env::var("TMDB_TOKEN")
-        .expect("Expected JELLYFIN_ANNOUNCEMENTS_CHANNEL_ID in environment");
+    let tmdb_token =
+        env::var("TMDB_TOKEN").expect("Expected JELLYFIN_ANNOUNCEMENTS_CHANNEL_ID in environment");
 
     let client = reqwest::Client::new();
 
-    let resp = 
-        client
+    let resp = client
         .get(endpoint)
         .header(AUTHORIZATION, format!("Bearer {}", tmdb_token))
         .send()
@@ -41,7 +38,7 @@ pub async fn get_configuration() -> Result<Configuration, String> {
 
     match resp {
         Ok(config) => Ok(config),
-        Err(e) => Err(e.to_string())
+        Err(e) => Err(e.to_string()),
     }
 }
 
@@ -55,13 +52,12 @@ pub struct Movie {
 pub async fn get_movie(id: &i64) -> Result<Movie, String> {
     let endpoint = format!("https://api.themoviedb.org/3/movie/{id}");
 
-    let tmdb_token = env::var("TMDB_TOKEN")
-        .expect("Expected JELLYFIN_ANNOUNCEMENTS_CHANNEL_ID in environment");
+    let tmdb_token =
+        env::var("TMDB_TOKEN").expect("Expected JELLYFIN_ANNOUNCEMENTS_CHANNEL_ID in environment");
 
     let client = reqwest::Client::new();
 
-    let resp = 
-        client
+    let resp = client
         .get(endpoint)
         .header(AUTHORIZATION, format!("Bearer {}", tmdb_token))
         .send()
@@ -72,7 +68,7 @@ pub async fn get_movie(id: &i64) -> Result<Movie, String> {
 
     match resp {
         Ok(movie) => Ok(movie),
-        Err(e) => Err(e.to_string())
+        Err(e) => Err(e.to_string()),
     }
 }
 
@@ -86,13 +82,12 @@ pub struct TvShow {
 pub async fn get_tv_show(id: &i64) -> Result<TvShow, String> {
     let endpoint = format!("https://api.themoviedb.org/3/tv/{id}");
 
-    let tmdb_token = env::var("TMDB_TOKEN")
-        .expect("Expected JELLYFIN_ANNOUNCEMENTS_CHANNEL_ID in environment");
+    let tmdb_token =
+        env::var("TMDB_TOKEN").expect("Expected JELLYFIN_ANNOUNCEMENTS_CHANNEL_ID in environment");
 
     let client = reqwest::Client::new();
 
-    let resp = 
-        client
+    let resp = client
         .get(endpoint)
         .header(AUTHORIZATION, format!("Bearer {}", tmdb_token))
         .send()
@@ -103,7 +98,7 @@ pub async fn get_tv_show(id: &i64) -> Result<TvShow, String> {
 
     match resp {
         Ok(tv_show) => Ok(tv_show),
-        Err(e) => Err(e.to_string())
+        Err(e) => Err(e.to_string()),
     }
 }
 
@@ -117,13 +112,12 @@ pub struct Season {
 pub async fn get_season(id: &i64, season_number: &i64) -> Result<Season, String> {
     let endpoint = format!("https://api.themoviedb.org/3/tv/{id}/season/{season_number}");
 
-    let tmdb_token = env::var("TMDB_TOKEN")
-        .expect("Expected JELLYFIN_ANNOUNCEMENTS_CHANNEL_ID in environment");
+    let tmdb_token =
+        env::var("TMDB_TOKEN").expect("Expected JELLYFIN_ANNOUNCEMENTS_CHANNEL_ID in environment");
 
     let client = reqwest::Client::new();
 
-    let resp = 
-        client
+    let resp = client
         .get(endpoint)
         .header(AUTHORIZATION, format!("Bearer {}", tmdb_token))
         .send()
@@ -134,7 +128,7 @@ pub async fn get_season(id: &i64, season_number: &i64) -> Result<Season, String>
 
     match resp {
         Ok(season) => Ok(season),
-        Err(e) => Err(e.to_string())
+        Err(e) => Err(e.to_string()),
     }
 }
 
@@ -146,16 +140,21 @@ pub struct Episode {
     pub episode_number: i32,
 }
 
-pub async fn get_episode(id: &i64, season_number: &i64, episode_number: &i64) -> Result<Episode, String> {
-    let endpoint = format!("https://api.themoviedb.org/3/tv/{id}/season/{season_number}/episode/{episode_number}");
+pub async fn get_episode(
+    id: &i64,
+    season_number: &i64,
+    episode_number: &i64,
+) -> Result<Episode, String> {
+    let endpoint = format!(
+        "https://api.themoviedb.org/3/tv/{id}/season/{season_number}/episode/{episode_number}"
+    );
 
-    let tmdb_token = env::var("TMDB_TOKEN")
-        .expect("Expected JELLYFIN_ANNOUNCEMENTS_CHANNEL_ID in environment");
+    let tmdb_token =
+        env::var("TMDB_TOKEN").expect("Expected JELLYFIN_ANNOUNCEMENTS_CHANNEL_ID in environment");
 
     let client = reqwest::Client::new();
 
-    let resp = 
-        client
+    let resp = client
         .get(endpoint)
         .header(AUTHORIZATION, format!("Bearer {}", tmdb_token))
         .send()
@@ -166,6 +165,6 @@ pub async fn get_episode(id: &i64, season_number: &i64, episode_number: &i64) ->
 
     match resp {
         Ok(episode) => Ok(episode),
-        Err(e) => Err(e.to_string())
+        Err(e) => Err(e.to_string()),
     }
 }

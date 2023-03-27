@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-
 #[derive(Serialize)]
 struct RequestBody<T: Serialize> {
     query: String,
@@ -66,10 +65,12 @@ pub async fn get_data(id: &i64) -> Result<Media, String> {
 
     let client = reqwest::Client::new();
 
-    let request_body = RequestBody { query: query.to_string(), variables };
+    let request_body = RequestBody {
+        query: query.to_string(),
+        variables,
+    };
 
-    let resp = 
-        client
+    let resp = client
         .post(endpoint)
         .json(&request_body)
         .send()
@@ -80,6 +81,6 @@ pub async fn get_data(id: &i64) -> Result<Media, String> {
 
     match resp {
         Ok(response_body) => Ok(response_body.data.media),
-        Err(e) => Err(e.to_string())
+        Err(e) => Err(e.to_string()),
     }
 }
