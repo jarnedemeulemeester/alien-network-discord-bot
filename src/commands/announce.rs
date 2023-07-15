@@ -1,9 +1,9 @@
 use regex::Regex;
 use serenity::builder::CreateApplicationCommand;
+use serenity::model::mention::Mention;
+use serenity::model::prelude::application_command::ApplicationCommandInteraction;
 use serenity::model::prelude::command::CommandOptionType;
-use serenity::model::prelude::interaction::application_command::{
-    CommandDataOption, CommandDataOptionValue,
-};
+use serenity::model::prelude::interaction::application_command::CommandDataOptionValue;
 use serenity::prelude::Context;
 use serenity::utils::MessageBuilder;
 
@@ -15,7 +15,20 @@ use crate::api::tmdb::{
 use crate::utils::decode_hex;
 use crate::Handler;
 
-pub async fn run(options: &[CommandDataOption], handler: &Handler, ctx: &Context) -> String {
+pub async fn run(
+    command: &ApplicationCommandInteraction,
+    handler: &Handler,
+    ctx: &Context,
+) -> String {
+    let options = &command.data.options;
+
+    if command.user.id != handler.admin_user_id {
+        return format!(
+            "Only {} is allowed to run this command!",
+            Mention::from(handler.admin_user_id)
+        );
+    }
+
     let subcommand = &options.get(0).expect("Expected subcommand").name;
 
     match subcommand.as_str() {

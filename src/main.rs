@@ -8,11 +8,12 @@ use serenity::async_trait;
 use serenity::model::application::interaction::Interaction;
 use serenity::model::gateway::Ready;
 use serenity::model::prelude::interaction::InteractionResponseType;
-use serenity::model::prelude::{ChannelId, GuildId};
+use serenity::model::prelude::{ChannelId, GuildId, UserId};
 use serenity::prelude::*;
 
 pub struct Handler {
     guild_id: GuildId,
+    admin_user_id: UserId,
     jellyfin_announcements_channel_id: ChannelId,
     shuffle_category_id: ChannelId,
     lobby_channel_id: ChannelId,
@@ -28,7 +29,7 @@ impl EventHandler for Handler {
             );
 
             let response_message = match command.data.name.as_str() {
-                "announce" => commands::announce::run(&command.data.options, &self, &ctx).await,
+                "announce" => commands::announce::run(&command, &self, &ctx).await,
                 "shuffle" => commands::shuffle::run(&command, &self, &ctx).await,
                 _ => "not implemented".to_string(),
             };
@@ -74,6 +75,13 @@ async fn main() {
             .expect("GUILD_ID must be an integer"),
     );
 
+    let admin_user_id = UserId(
+        env::var("ADMIN_USER_ID")
+            .expect("Expected ADMIN_USER_ID in environment")
+            .parse()
+            .expect("ADMIN_USER_ID must be an integer"),
+    );
+
     let jellyfin_announcements_channel_id = ChannelId(
         env::var("JELLYFIN_ANNOUNCEMENTS_CHANNEL_ID")
             .expect("Expected JELLYFIN_ANNOUNCEMENTS_CHANNEL_ID in environment")
@@ -102,6 +110,7 @@ async fn main() {
     )
     .event_handler(Handler {
         guild_id,
+        admin_user_id,
         jellyfin_announcements_channel_id,
         shuffle_category_id,
         lobby_channel_id,
