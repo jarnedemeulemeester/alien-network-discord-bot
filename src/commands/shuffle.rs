@@ -4,32 +4,20 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 
 use serenity::{
-    builder::CreateApplicationCommand,
-    model::prelude::{
-        command::CommandOptionType,
-        interaction::application_command::{ApplicationCommandInteraction, CommandDataOptionValue},
-        ChannelType, GuildChannel,
-    },
+    builder::{CreateChannel, CreateCommand, CreateCommandOption},
+    model::application::{CommandDataOptionValue, CommandInteraction, CommandOptionType},
+    model::prelude::{ChannelType, GuildChannel},
     prelude::Context,
 };
 
 use crate::Handler;
 
-pub async fn run(
-    command: &ApplicationCommandInteraction,
-    handler: &Handler,
-    ctx: &Context,
-) -> String {
+pub async fn run(command: &CommandInteraction, handler: &Handler, ctx: &Context) -> String {
     let options = &command.data.options;
 
-    let n_teams_option = options
-        .get(0)
-        .expect("Expected subcommand")
-        .resolved
-        .as_ref()
-        .unwrap();
+    let n_teams_option = options.get(0).expect("Expected subcommand");
 
-    let n_teams = if let CommandDataOptionValue::Integer(n_teams) = n_teams_option {
+    let n_teams = if let CommandDataOptionValue::Integer(n_teams) = n_teams_option.value {
         n_teams
     } else {
         return "Please provide a valid ID".to_string();
@@ -48,7 +36,7 @@ pub async fn run(
                         Err(e) => return e.to_string(),
                     }
                 } else {
-                    match channel.1.members(&ctx.cache).await {
+                    match channel.1.members(&ctx.cache) {
                         Ok(members) => members_in_lobby = members,
                         Err(e) => return e.to_string(),
                     }
@@ -63,17 +51,11 @@ pub async fn run(
 
     let mut team_channels: Vec<GuildChannel> = Vec::new();
 
-    for n in 0..*n_teams {
-        match handler
-            .guild_id
-            .create_channel(&ctx.http, |channel| {
-                channel
-                    .category(handler.shuffle_category_id)
-                    .name(format!("team {}", n + 1))
-                    .kind(ChannelType::Voice)
-            })
-            .await
-        {
+    for n in 0..n_teams {
+        let builder = CreateChannel::new(format!("team {}", n + 1))
+            .kind(ChannelType::Voice)
+            .category(handler.shuffle_category_id);
+        match handler.guild_id.create_channel(&ctx.http, builder).await {
             Ok(channel) => team_channels.push(channel),
             Err(e) => return e.to_string(),
         }
@@ -82,7 +64,7 @@ pub async fn run(
     members_in_lobby.shuffle(&mut thread_rng());
 
     for (i, members) in members_in_lobby
-        .chunks((members_in_lobby.len() as f32 / *n_teams as f32).ceil() as usize)
+        .chunks((members_in_lobby.len() as f32 / n_teams as f32).ceil() as usize)
         .enumerate()
     {
         for member in members {
@@ -96,16 +78,15 @@ pub async fn run(
     format!("Shuffling into {n_teams} teams").to_string()
 }
 
-pub fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-    command
+pub fn register() -> CreateCommand {
+    let n_teams_option =
+        CreateCommandOption::new(CommandOptionType::Integer, "n_teams", "Number of teams")
+            .min_int_value(2)
+            .max_int_value(10)
+            .required(true);
+
+    CreateCommand::new("shuffle")
         .name("shuffle")
         .description("Shuffle users to different voice channels. Useful for playing against eachother in random teams")
-        .create_option(|option| {
-            option
-                .name("n_teams")
-                .description("Number of teams")
-                .kind(CommandOptionType::Integer)
-                .max_int_value(10)
-                .required(true)
-        })
+        .add_option(n_teams_option)
 }

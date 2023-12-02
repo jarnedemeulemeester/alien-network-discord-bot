@@ -5,9 +5,9 @@ mod utils;
 use std::env;
 
 use serenity::async_trait;
-use serenity::model::application::interaction::Interaction;
+use serenity::builder::{CreateInteractionResponse, CreateInteractionResponseMessage};
+use serenity::model::application::Interaction;
 use serenity::model::gateway::Ready;
-use serenity::model::prelude::interaction::InteractionResponseType;
 use serenity::model::prelude::{ChannelId, GuildId, UserId};
 use serenity::prelude::*;
 
@@ -22,7 +22,7 @@ pub struct Handler {
 #[async_trait]
 impl EventHandler for Handler {
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        if let Interaction::ApplicationCommand(command) = interaction {
+        if let Interaction::Command(command) = interaction {
             println!(
                 "Received command interaction: {:#?} from {:#?}",
                 command.data.name, command.user.name
@@ -34,16 +34,12 @@ impl EventHandler for Handler {
                 _ => "not implemented".to_string(),
             };
 
-            if let Err(why) = command
-                .create_interaction_response(&ctx.http, |response| {
-                    response
-                        .kind(InteractionResponseType::ChannelMessageWithSource)
-                        .interaction_response_data(|message| {
-                            message.content(response_message).ephemeral(true)
-                        })
-                })
-                .await
-            {
+            let data = CreateInteractionResponseMessage::new()
+                .content(response_message)
+                .ephemeral(true);
+            let builder = CreateInteractionResponse::Message(data);
+
+            if let Err(why) = command.create_response(&ctx.http, builder).await {
                 println!("Cannot respond to slash command: {}", why);
             }
         }
@@ -51,13 +47,16 @@ impl EventHandler for Handler {
 
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
-
-        let commands = GuildId::set_application_commands(&self.guild_id, &ctx.http, |commands| {
-            commands
-                .create_application_command(|command| commands::announce::register(command))
-                .create_application_command(|command| commands::shuffle::register(command))
-        })
-        .await;
+        let commands = self
+            .guild_id
+            .set_commands(
+                &ctx.http,
+                vec![
+                    commands::announce::register(),
+                    commands::shuffle::register(),
+                ],
+            )
+            .await;
 
         println!("I created the following slash command: {:#?}", commands);
     }
@@ -68,35 +67,35 @@ async fn main() {
     // Configure the client with your Discord bot token in the environment.
     let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
 
-    let guild_id = GuildId(
+    let guild_id = GuildId::new(
         env::var("GUILD_ID")
             .expect("Expected GUILD_ID in environment")
             .parse()
             .expect("GUILD_ID must be an integer"),
     );
 
-    let admin_user_id = UserId(
+    let admin_user_id = UserId::new(
         env::var("ADMIN_USER_ID")
             .expect("Expected ADMIN_USER_ID in environment")
             .parse()
             .expect("ADMIN_USER_ID must be an integer"),
     );
 
-    let jellyfin_announcements_channel_id = ChannelId(
+    let jellyfin_announcements_channel_id = ChannelId::new(
         env::var("JELLYFIN_ANNOUNCEMENTS_CHANNEL_ID")
             .expect("Expected JELLYFIN_ANNOUNCEMENTS_CHANNEL_ID in environment")
             .parse()
             .expect("JELLYFIN_ANNOUNCEMENTS_CHANNEL_ID must be an integer"),
     );
 
-    let shuffle_category_id = ChannelId(
+    let shuffle_category_id = ChannelId::new(
         env::var("SHUFFLE_CATEGORY_ID")
             .expect("Expected SHUFFLE_CATEGORY_ID in environment")
             .parse()
             .expect("SHUFFLE_CATEGORY_ID must be an integer"),
     );
 
-    let lobby_channel_id = ChannelId(
+    let lobby_channel_id = ChannelId::new(
         env::var("LOBBY_CHANNEL_ID")
             .expect("Expected LOBBY_CHANNEL_ID in environment")
             .parse()
@@ -131,7 +130,7 @@ async fn main() {
             _ = sigint.recv() => println!("SIGINT"),
             _ = sigterm.recv() => println!("SIGTERM"),
         }
-        shard_manager.lock().await.shutdown_all().await;
+        shard_manager.shutdown_all().await;
     });
 
     // Finally, start a single shard, and start listening to events.
