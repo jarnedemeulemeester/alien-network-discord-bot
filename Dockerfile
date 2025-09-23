@@ -1,4 +1,4 @@
-FROM rust:1.89-alpine as builder
+FROM rust:1.90-alpine as builder
 RUN apk add --no-cache musl-dev
 WORKDIR /usr/src/alien-network-discord-bot
 COPY . .
