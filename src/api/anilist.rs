@@ -19,7 +19,6 @@ struct Data {
 
 #[derive(Deserialize)]
 pub struct Media {
-    pub id: u32,
     pub title: Title,
     pub description: String,
     #[serde(rename = "coverImage")]

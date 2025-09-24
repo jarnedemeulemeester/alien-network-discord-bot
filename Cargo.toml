@@ -5,9 +5,9 @@ edition = "2021"
 
 [dependencies]
 serenity = { version = "0.12", default-features = false, features = ["client", "gateway", "rustls_backend", "model", "cache"] }
-tokio = { version = "1.38", features = ["macros", "signal", "rt-multi-thread"] }
+tokio = { version = "1.47", features = ["macros", "signal", "rt-multi-thread"] }
 serde = { version = "1.0", features = ["derive"] }
-regex = "1.10"
+regex = "1.11"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "http2"] }
 rand = "0.8"
 

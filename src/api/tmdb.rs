@@ -10,13 +10,7 @@ pub struct Configuration {
 
 #[derive(Debug, Deserialize)]
 pub struct ImagesConfiguration {
-    pub base_url: String,
     pub secure_base_url: String,
-    pub backdrop_sizes: Vec<String>,
-    pub logo_sizes: Vec<String>,
-    pub poster_sizes: Vec<String>,
-    pub profile_sizes: Vec<String>,
-    pub still_sizes: Vec<String>,
 }
 
 pub async fn get_configuration() -> Result<Configuration, String> {
@@ -134,7 +128,6 @@ pub async fn get_season(id: &i64, season_number: &i64) -> Result<Season, String>
 
 #[derive(Debug, Deserialize)]
 pub struct Episode {
-    pub name: String,
     pub overview: String,
     pub still_path: String,
     pub episode_number: i32,
