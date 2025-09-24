@@ -1,7 +1,7 @@
 extern crate rand;
 
 use rand::seq::SliceRandom;
-use rand::thread_rng;
+use rand::rng;
 
 use serenity::{
     builder::{CreateChannel, CreateCommand, CreateCommandOption},
@@ -61,7 +61,7 @@ pub async fn run(command: &CommandInteraction, handler: &Handler, ctx: &Context)
         }
     }
 
-    members_in_lobby.shuffle(&mut thread_rng());
+    members_in_lobby.shuffle(&mut rng());
 
     for (i, members) in members_in_lobby
         .chunks((members_in_lobby.len() as f32 / n_teams as f32).ceil() as usize)
