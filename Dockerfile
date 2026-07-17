@@ -9,7 +9,7 @@ COPY . .
 RUN cargo install --locked --path .
 
 
-FROM alpine:3.23
+FROM alpine:3.24
 
 COPY --from=builder /usr/local/cargo/bin/alien-network-discord-bot /usr/local/bin/alien-network-discord-bot
 
